@@ -32,7 +32,7 @@ export const commands = [
     .addSubcommand((command) =>
       command
         .setName('sync')
-        .setDescription('Check GitHub access and Discord channels')
+        .setDescription('Import and update GitHub issues and pull requests')
         .addStringOption((option) =>
           option
             .setName('repository')

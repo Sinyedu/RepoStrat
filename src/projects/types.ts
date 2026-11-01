@@ -76,7 +76,8 @@ export class ProjectError extends Error {
       | 'bot-not-in-guild'
       | 'in-progress'
       | 'discord-conflict'
-      | 'not-registered',
+      | 'not-registered'
+      | 'sync-in-progress',
   ) {
     super(code);
   }

@@ -6,7 +6,7 @@ This file applies to Codex, Claude Code, and future coding agents. Read it with 
 
 - RepoStrat is one self-hosted Node.js application, not a monorepo. GitHub is the source of truth.
 - Discord uses one category per repository. It cannot nest categories.
-- Milestone 1 established the foundation. Milestone 2 adds read-only GitHub App repository validation, Discord workspaces, and persistent registration. Do not implement issue/PR imports, webhooks, or GitHub writes until separately approved.
+- Milestone 1 established the foundation. Milestone 2 adds read-only GitHub App repository validation, Discord workspaces, and persistent registration. Milestone 3 adds manual issue/PR import through `/project sync`. Do not implement webhooks, scheduled polling, or GitHub writes until separately approved.
 - Keep code small and direct. Prefer TypeScript files under 150 lines when practical.
 
 ## Engineering rules

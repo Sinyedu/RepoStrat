@@ -109,8 +109,8 @@ export class FakeWorkspace implements WorkspaceGateway {
   }
 }
 
-export function fixture() {
-  const database = openDatabase('file::memory:');
+export function fixture(databaseUrl = 'file::memory:') {
+  const database = openDatabase(databaseUrl);
   const store = new ProjectStore(database.db);
   const workspace = new FakeWorkspace();
   let repository = { ...baseRepository };

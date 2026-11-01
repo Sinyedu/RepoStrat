@@ -39,3 +39,15 @@ describe('environment validation', () => {
     ).toThrow('DATABASE_URL');
   });
 });
+
+describe('sync configuration', () => {
+  it('defaults and bounds the sync batch size', () => {
+    expect(parseConfig(valid).SYNC_BATCH_SIZE).toBe(50);
+    expect(
+      parseConfig({ ...valid, SYNC_BATCH_SIZE: '10' }).SYNC_BATCH_SIZE,
+    ).toBe(10);
+    expect(() => parseConfig({ ...valid, SYNC_BATCH_SIZE: '0' })).toThrow(
+      'SYNC_BATCH_SIZE',
+    );
+  });
+});
