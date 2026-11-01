@@ -6,10 +6,14 @@ import { openDatabase } from './db/index.js';
 import { handleCommand } from './discord/handle-command.js';
 import { reportCommandFailure } from './discord/command-failure.js';
 import { DiscordWorkspace } from './discord/workspace.js';
+import { DiscordForum } from './discord/forum.js';
+import { createItemsGateway } from './github/items.js';
 import { createGitHubGateway } from './github/repositories.js';
 import { createHttpServer } from './http.js';
 import { ProjectService } from './projects/service.js';
 import { ProjectStore } from './projects/store.js';
+import { SyncService } from './sync/service.js';
+import { SyncStore } from './sync/store.js';
 
 type Dependencies = {
   client?: Client;
@@ -35,6 +39,13 @@ export async function startApplication(
     new DiscordWorkspace(client),
     config.GITHUB_INSTALLATION_ID ?? '',
   );
+  const syncs = new SyncService(
+    projects,
+    createItemsGateway(config),
+    new DiscordForum(client),
+    new SyncStore(database.db),
+    config.SYNC_BATCH_SIZE,
+  );
   let stopping: Promise<void> | undefined;
 
   function stop(): Promise<void> {
@@ -53,7 +64,7 @@ export async function startApplication(
 
   client.on(Events.InteractionCreate, (interaction) => {
     if (!interaction.isChatInputCommand()) return;
-    void handleCommand(interaction, projects).catch((error: unknown) =>
+    void handleCommand(interaction, projects, syncs).catch((error: unknown) =>
       reportCommandFailure(interaction, error, logger),
     );
   });

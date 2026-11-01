@@ -22,6 +22,7 @@ const schema = z.object({
   GITHUB_INSTALLATION_ID: z.string().optional(),
   GITHUB_PRIVATE_KEY_PATH: z.string().optional(),
   GITHUB_WEBHOOK_SECRET: z.string().optional(),
+  SYNC_BATCH_SIZE: z.coerce.number().int().min(1).max(500).default(50),
 });
 
 export type Config = z.infer<typeof schema>;

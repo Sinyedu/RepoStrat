@@ -11,6 +11,7 @@ import {
   type Project,
   type WorkspaceGateway,
 } from '../projects/types.js';
+import { isMissing } from './errors.js';
 
 const channels = {
   overviewId: { name: 'overview', type: ChannelType.GuildText },
@@ -24,15 +25,6 @@ function categoryName(project: Project): string {
   const suffix = `-${project.githubRepositoryId}`;
   return (
     `${project.owner}-${project.name}`.slice(0, 100 - suffix.length) + suffix
-  );
-}
-
-function isMissing(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    (('status' in error && error.status === 404) ||
-      ('code' in error && error.code === 10003))
   );
 }
 
