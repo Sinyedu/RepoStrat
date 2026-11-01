@@ -6,26 +6,33 @@ export const commands = [
     .setDescription('Check whether RepoStrat is responding'),
   new SlashCommandBuilder()
     .setName('project')
-    .setDescription('Manage GitHub projects (coming in a later milestone)')
+    .setDescription('Manage GitHub projects')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((command) =>
       command
         .setName('add')
-        .setDescription('Register a GitHub repository (coming soon)')
+        .setDescription('Register a GitHub repository')
         .addStringOption((option) =>
           option
             .setName('repository')
             .setDescription('owner/repository')
             .setRequired(true),
+        )
+        .addRoleOption((option) =>
+          option
+            .setName('audience')
+            .setDescription(
+              'Role allowed to view this workspace; required for private repositories',
+            ),
         ),
     )
     .addSubcommand((command) =>
-      command.setName('list').setDescription('List projects (coming soon)'),
+      command.setName('list').setDescription('List registered projects'),
     )
     .addSubcommand((command) =>
       command
         .setName('sync')
-        .setDescription('Sync a repository (coming soon)')
+        .setDescription('Check GitHub access and Discord channels')
         .addStringOption((option) =>
           option
             .setName('repository')

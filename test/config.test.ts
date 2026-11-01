@@ -15,6 +15,13 @@ describe('environment validation', () => {
     expect(config.GITHUB_WEBHOOK_SECRET).toBe('');
   });
 
+  it('does not block Discord startup on malformed optional GitHub settings', () => {
+    expect(
+      parseConfig({ ...valid, GITHUB_INSTALLATION_ID: 'not-configured' })
+        .DISCORD_GUILD_ID,
+    ).toBe(valid.DISCORD_GUILD_ID);
+  });
+
   it('reports invalid variable names without exposing values', () => {
     expect(() =>
       parseConfig({ ...valid, DISCORD_CLIENT_ID: 'bad', PORT: '0' }),
