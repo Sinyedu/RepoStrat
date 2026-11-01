@@ -40,7 +40,9 @@ export class DiscordWorkspace implements WorkspaceGateway {
   constructor(private readonly client: Client) {}
 
   private async guild(id: string): Promise<Guild> {
-    return this.client.guilds.fetch(id);
+    const guild = this.client.guilds.cache.get(id);
+    if (!guild) throw new ProjectError('bot-not-in-guild');
+    return guild;
   }
 
   private async channel(

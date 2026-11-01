@@ -6,7 +6,7 @@
 - pnpm 11 (`corepack enable` can provide the package manager from `package.json`)
 - A Discord application and bot added to a development server
 
-The bot needs the `bot` and `applications.commands` OAuth scopes. Grant **View Channels** and **Manage Channels** for workspace creation. Restricted workspaces also require **Manage Roles** to set permission overwrites. Keep **Send Messages** if the bot will post in text channels in a later milestone. The client uses only the `Guilds` gateway intent; no privileged intent is required. A user needs **Manage Server** to invoke `/project` commands.
+Install the **bot user** in the development server with the `bot` and `applications.commands` OAuth scopes. An application installed only for commands can answer `/ping` while its bot user cannot access the server; `/project add` needs the bot present. Grant **View Channels** and **Manage Channels** for workspace creation. Restricted workspaces also require **Manage Roles** to set permission overwrites. Keep **Send Messages** if the bot will post in text channels in a later milestone. The client uses only the `Guilds` gateway intent; no privileged intent is required. A user needs **Manage Server** to invoke `/project` commands.
 
 Create a GitHub App with repository **Metadata: Read-only** access, install it on the intended account or organization, and grant it access to the repositories to register. Set the App ID, installation ID, and path to its private key in `.env`. The key remains outside Git. A GitHub repository may be private; the installation must have access to it. This milestone performs no GitHub writes and needs no webhook subscription.
 
@@ -43,6 +43,8 @@ pnpm dev
 ```
 
 Run `pnpm commands:register` again after changing command definitions. This updates commands only in `DISCORD_GUILD_ID`. To use commands in another server, set that server as `DISCORD_GUILD_ID` and run registration there too. Use `/ping` to check the bot, and request `/health` on the configured address and port. Stop with Ctrl+C; the process closes the HTTP server, Discord connection, and SQLite database.
+
+`DISCORD_GUILD_ID` selects where development commands are registered. Project commands use the server ID from each interaction. If `/project add` says the bot cannot access the server, verify the bot user appears in that server's member list and reinstall it with the `bot` scope if needed. Command registration alone does not add the bot user.
 
 To test registration, run `/project add Sinyedu/QueryPlan` in the development server. If the repository is private, choose an `audience` role containing you; RepoStrat denies `@everyone` access to its category and four channels. Then run `/project list` and `/project sync Sinyedu/QueryPlan`. Repeating `/project add` repairs missing channels and should not create duplicate workspaces. `/project sync` only reports mapping or access problems; it does not synchronize issue or PR posts.
 

@@ -17,6 +17,8 @@ const messages: Record<ProjectError['code'], string> = {
     'An audience role is required for a non-public repository.',
   'audience-denied': 'The audience role must exist and include you.',
   'bot-permissions': 'The bot lacks permissions to create this workspace.',
+  'bot-not-in-guild':
+    'The bot cannot access this server. Install its bot user in this server, then retry.',
   'in-progress':
     'Registration is in progress. Retry after two minutes if interrupted.',
   'discord-conflict':
@@ -34,10 +36,14 @@ export async function handleCommand(
   }
   if (interaction.commandName !== 'project') return;
 
-  if (
-    !interaction.inGuild() ||
-    !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)
-  ) {
+  if (!interaction.inGuild() || !interaction.guildId) {
+    await interaction.reply({
+      content: 'Use this command in a server.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
     await interaction.reply({
       content: 'Manage Server permission is required.',
       flags: MessageFlags.Ephemeral,
@@ -48,7 +54,7 @@ export async function handleCommand(
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   try {
     const action = interaction.options.getSubcommand();
-    const guildId = interaction.guildId!;
+    const guildId = interaction.guildId;
     if (action === 'add') {
       const path = interaction.options.getString('repository', true);
       const roleId = interaction.options.getRole('audience')?.id ?? null;
@@ -90,7 +96,9 @@ export async function handleCommand(
           ? `${project.owner}/${project.name}: ${problems.join(', ')} need attention.`
           : `${project.owner}/${project.name}: GitHub access and Discord mappings are healthy.`,
       );
+      return;
     }
+    await interaction.editReply('Unknown project command.');
   } catch (error) {
     if (!(error instanceof ProjectError)) throw error;
     await interaction.editReply(messages[error.code]);

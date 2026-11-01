@@ -33,7 +33,10 @@ describe('Discord workspace creation', () => {
     } as unknown as Guild;
     const client = {
       user: { id: botId },
-      guilds: { fetch: vi.fn(async () => guild) },
+      guilds: {
+        cache: new Collection([[guildId, guild]]),
+        fetch: vi.fn(async () => guild),
+      },
     } as unknown as Client;
     const workspace = new DiscordWorkspace(client);
     const project = {
@@ -66,5 +69,28 @@ describe('Discord workspace creation', () => {
       { id: botId, allow: [PermissionFlagsBits.ViewChannel] },
     ]);
     expect(create.mock.calls[1]?.[0].permissionOverwrites).toEqual(overwrites);
+    expect(client.guilds.fetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects a guild missing from the bot cache without a REST guild fetch', async () => {
+    const fetchGuild = vi.fn();
+    const client = {
+      guilds: { cache: new Collection(), fetch: fetchGuild },
+    } as unknown as Client;
+    const workspace = new DiscordWorkspace(client);
+    await expect(
+      workspace.assertPermissions(guildId, false),
+    ).rejects.toMatchObject({ code: 'bot-not-in-guild' });
+    expect(fetchGuild).not.toHaveBeenCalled();
+  });
+
+  it('does not substitute another cached guild for the requested guild ID', async () => {
+    const otherGuild = { id: '999999999999999999' } as Guild;
+    const client = {
+      guilds: { cache: new Collection([[otherGuild.id, otherGuild]]) },
+    } as unknown as Client;
+    await expect(
+      new DiscordWorkspace(client).assertPermissions(guildId, false),
+    ).rejects.toMatchObject({ code: 'bot-not-in-guild' });
   });
 });

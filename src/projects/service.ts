@@ -1,6 +1,7 @@
 import type { ProjectStore } from './store.js';
 import {
   ProjectError,
+  ProjectOperationError,
   type ChannelField,
   type GitHubGateway,
   type Project,
@@ -22,6 +23,18 @@ function parsePath(path: string): { owner: string; name: string } {
   if (!match || match[2] === '.' || match[2] === '..')
     throw new ProjectError('invalid-name');
   return { owner: match[1]!, name: match[2]! };
+}
+
+async function discordOperation<T>(
+  operation: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof ProjectError) throw error;
+    throw new ProjectOperationError(operation, error);
+  }
 }
 
 export class ProjectService {
@@ -56,18 +69,29 @@ export class ProjectService {
     requestedRoleId: string | null,
   ) {
     const { owner, name } = parsePath(path);
+    await discordOperation('discord.guild.permissions', () =>
+      this.workspace.assertPermissions(guildId, false),
+    );
     const repository = await this.github.getRepository(owner, name);
     const existing = this.store.find(guildId, repository.id);
     const roleId = requestedRoleId ?? existing?.audienceRoleId ?? null;
     if (repository.visibility !== 'public' && !roleId) {
       if (existing) {
         this.store.refresh(existing.id, repository);
-        await this.workspace.quarantine(existing);
+        await discordOperation('discord.workspace.quarantine', () =>
+          this.workspace.quarantine(existing),
+        );
       }
       throw new ProjectError('audience-required');
     }
-    await this.workspace.assertPermissions(guildId, !!roleId);
-    if (roleId) await this.workspace.assertAudience(guildId, userId, roleId);
+    if (roleId) {
+      await discordOperation('discord.guild.permissions', () =>
+        this.workspace.assertPermissions(guildId, true),
+      );
+      await discordOperation('discord.guild.audience', () =>
+        this.workspace.assertAudience(guildId, userId, roleId),
+      );
+    }
 
     const claim = this.store.claim({
       guildId,
@@ -79,7 +103,9 @@ export class ProjectService {
 
     let project = claim.project;
     try {
-      const category = await this.workspace.ensureCategory(project, roleId);
+      const category = await discordOperation('discord.category.ensure', () =>
+        this.workspace.ensureCategory(project, roleId),
+      );
       project = await this.persist(
         project,
         claim.token,
@@ -87,11 +113,15 @@ export class ProjectService {
         category,
       );
       for (const field of childFields) {
-        const result = await this.workspace.ensureChannel(
-          project,
-          field,
-          project.categoryId!,
-          roleId,
+        const result = await discordOperation(
+          `discord.channel.${field}.ensure`,
+          () =>
+            this.workspace.ensureChannel(
+              project,
+              field,
+              project.categoryId!,
+              roleId,
+            ),
         );
         project = await this.persist(project, claim.token, field, result);
       }
@@ -130,20 +160,22 @@ export class ProjectService {
     if (!project) throw new ProjectError('not-registered');
     if (repository.visibility !== 'public' && !project.audienceRoleId) {
       this.store.refresh(project.id, repository);
-      await this.workspace.quarantine(project);
+      await discordOperation('discord.workspace.quarantine', () =>
+        this.workspace.quarantine(project),
+      );
       throw new ProjectError('audience-required');
     }
     if (project.audienceRoleId) {
-      await this.workspace.assertAudience(
-        guildId,
-        userId,
-        project.audienceRoleId,
+      await discordOperation('discord.guild.audience', () =>
+        this.workspace.assertAudience(guildId, userId, project.audienceRoleId!),
       );
     }
-    const problems = await this.workspace.inspect({
-      ...project,
-      visibility: repository.visibility,
-    });
+    const problems = await discordOperation('discord.workspace.inspect', () =>
+      this.workspace.inspect({
+        ...project,
+        visibility: repository.visibility,
+      }),
+    );
     this.store.refresh(project.id, repository);
     return {
       project: {

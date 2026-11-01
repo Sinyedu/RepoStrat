@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { commands } from '../src/discord/commands.js';
 import { handleCommand } from '../src/discord/handle-command.js';
 import type { ProjectService } from '../src/projects/service.js';
+import { ProjectError } from '../src/projects/types.js';
 
 const projects = {
   add: vi.fn(),
@@ -70,6 +71,62 @@ describe('Discord commands', () => {
       content: 'Manage Server permission is required.',
       flags: MessageFlags.Ephemeral,
     });
+  });
+
+  it('rejects a missing interaction guild ID without calling the service', async () => {
+    const input = interaction('project', 'add');
+    Object.assign(input, { guildId: null });
+    const add = vi.spyOn(projects, 'add');
+    await handleCommand(input, projects);
+    expect(input.reply).toHaveBeenCalledWith({
+      content: 'Use this command in a server.',
+      flags: MessageFlags.Ephemeral,
+    });
+    expect(add).not.toHaveBeenCalled();
+    add.mockRestore();
+  });
+
+  it('passes the interaction guild ID to project registration', async () => {
+    const input = interaction('project', 'add');
+    Object.assign(input, { guildId: '876543210987654321' });
+    const add = vi.spyOn(projects, 'add').mockResolvedValueOnce({
+      owner: 'acme',
+      name: 'widget',
+      categoryId: '123',
+    } as Awaited<ReturnType<ProjectService['add']>>);
+    await handleCommand(input, projects);
+    expect(add).toHaveBeenCalledWith(
+      '876543210987654321',
+      input.user.id,
+      'acme/widget',
+      null,
+    );
+    expect(input.deferReply).toHaveBeenCalledBefore(add);
+    expect(input.editReply).toHaveBeenCalledWith(
+      'Registered acme/widget in <#123>.',
+    );
+    add.mockRestore();
+  });
+
+  it('edits the deferred reply when the bot is absent from the server', async () => {
+    const unavailable = {
+      add: async () => {
+        throw new ProjectError('bot-not-in-guild');
+      },
+    } as unknown as ProjectService;
+    const input = interaction('project', 'add');
+    await handleCommand(input, unavailable);
+    expect(input.deferReply).toHaveBeenCalledOnce();
+    expect(input.editReply).toHaveBeenCalledWith(
+      'The bot cannot access this server. Install its bot user in this server, then retry.',
+    );
+  });
+
+  it('edits the deferred reply for an unknown project action', async () => {
+    const input = interaction('project', 'unexpected');
+    await handleCommand(input, projects);
+    expect(input.deferReply).toHaveBeenCalledOnce();
+    expect(input.editReply).toHaveBeenCalledWith('Unknown project command.');
   });
 
   it('routes project commands through the service with an ephemeral reply', async () => {

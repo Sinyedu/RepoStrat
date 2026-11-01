@@ -73,10 +73,20 @@ export class ProjectError extends Error {
       | 'audience-required'
       | 'audience-denied'
       | 'bot-permissions'
+      | 'bot-not-in-guild'
       | 'in-progress'
       | 'discord-conflict'
       | 'not-registered',
   ) {
     super(code);
+  }
+}
+
+export class ProjectOperationError extends Error {
+  constructor(
+    readonly operation: string,
+    cause: unknown,
+  ) {
+    super(`Project operation failed: ${operation}`, { cause });
   }
 }

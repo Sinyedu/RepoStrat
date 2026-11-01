@@ -1,9 +1,10 @@
-import { Client, Events, GatewayIntentBits, MessageFlags } from 'discord.js';
+import { Client, Events, GatewayIntentBits } from 'discord.js';
 import type { FastifyInstance } from 'fastify';
 import pino from 'pino';
 import type { Config } from './config.js';
 import { openDatabase } from './db/index.js';
 import { handleCommand } from './discord/handle-command.js';
+import { reportCommandFailure } from './discord/command-failure.js';
 import { DiscordWorkspace } from './discord/workspace.js';
 import { createGitHubGateway } from './github/repositories.js';
 import { createHttpServer } from './http.js';
@@ -52,31 +53,9 @@ export async function startApplication(
 
   client.on(Events.InteractionCreate, (interaction) => {
     if (!interaction.isChatInputCommand()) return;
-    void handleCommand(interaction, projects).catch(async (error: unknown) => {
-      logger.error(
-        { errorName: error instanceof Error ? error.name : 'unknown' },
-        'Command failed',
-      );
-      const content = 'Something went wrong. Please try again later.';
-      try {
-        if (interaction.replied || interaction.deferred) {
-          await interaction.followUp({
-            content,
-            flags: MessageFlags.Ephemeral,
-          });
-        } else {
-          await interaction.reply({ content, flags: MessageFlags.Ephemeral });
-        }
-      } catch (replyError) {
-        logger.error(
-          {
-            errorName:
-              replyError instanceof Error ? replyError.name : 'unknown',
-          },
-          'Could not report command failure',
-        );
-      }
-    });
+    void handleCommand(interaction, projects).catch((error: unknown) =>
+      reportCommandFailure(interaction, error, logger),
+    );
   });
 
   try {

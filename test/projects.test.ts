@@ -84,7 +84,7 @@ describe('project registration', () => {
     const { service, store, workspace } = setup();
     workspace.failField = 'issuesId';
     await expect(service.add(guild, user, 'acme/widget', null)).rejects.toThrow(
-      'Discord creation failed',
+      'discord.channel.issuesId.ensure',
     );
     expect(store.find(guild, '100')).toMatchObject({
       status: 'pending',
@@ -118,6 +118,24 @@ describe('project registration', () => {
       service.add(guild, user, 'acme/widget', null),
     ).rejects.toMatchObject({ code: 'bot-permissions' });
     expect(workspace.created).toBe(0);
+  });
+
+  it('labels a Discord permission API failure before querying GitHub', async () => {
+    const f = setup();
+    f.workspace.assertPermissions = async () => {
+      throw Object.assign(new Error('Discord denied access'), {
+        code: 50013,
+        status: 403,
+      });
+    };
+    f.setGitHubError(new ProjectError('github-unavailable'));
+    const error = await f.service
+      .add(guild, user, 'acme/widget', null)
+      .catch((failure: unknown) => failure);
+    expect((error as { operation?: string }).operation).toBe(
+      'discord.guild.permissions',
+    );
+    expect(f.workspace.created).toBe(0);
   });
 
   it('requires an explicit audience for private repositories', async () => {
