@@ -4,7 +4,11 @@ import pino from 'pino';
 import type { Config } from './config.js';
 import { openDatabase } from './db/index.js';
 import { handleCommand } from './discord/handle-command.js';
+import { DiscordWorkspace } from './discord/workspace.js';
+import { createGitHubGateway } from './github/repositories.js';
 import { createHttpServer } from './http.js';
+import { ProjectService } from './projects/service.js';
+import { ProjectStore } from './projects/store.js';
 
 type Dependencies = {
   client?: Client;
@@ -24,6 +28,12 @@ export async function startApplication(
   const server = dependencies.server ?? createHttpServer(logger);
   const client =
     dependencies.client ?? new Client({ intents: [GatewayIntentBits.Guilds] });
+  const projects = new ProjectService(
+    new ProjectStore(database.db),
+    createGitHubGateway(config),
+    new DiscordWorkspace(client),
+    config.GITHUB_INSTALLATION_ID ?? '',
+  );
   let stopping: Promise<void> | undefined;
 
   function stop(): Promise<void> {
@@ -42,8 +52,11 @@ export async function startApplication(
 
   client.on(Events.InteractionCreate, (interaction) => {
     if (!interaction.isChatInputCommand()) return;
-    void handleCommand(interaction).catch(async (error: unknown) => {
-      logger.error({ err: error }, 'Command failed');
+    void handleCommand(interaction, projects).catch(async (error: unknown) => {
+      logger.error(
+        { errorName: error instanceof Error ? error.name : 'unknown' },
+        'Command failed',
+      );
       const content = 'Something went wrong. Please try again later.';
       try {
         if (interaction.replied || interaction.deferred) {
@@ -55,7 +68,13 @@ export async function startApplication(
           await interaction.reply({ content, flags: MessageFlags.Ephemeral });
         }
       } catch (replyError) {
-        logger.error({ err: replyError }, 'Could not report command failure');
+        logger.error(
+          {
+            errorName:
+              replyError instanceof Error ? replyError.name : 'unknown',
+          },
+          'Could not report command failure',
+        );
       }
     });
   });
